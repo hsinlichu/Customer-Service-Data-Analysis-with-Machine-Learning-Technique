@@ -1,8 +1,8 @@
 {
-    "data_path": "./data.xlsx",
-    "training_portion" : 0.9,
-   "embedding_path": "./crawl-300d-2M.vec"
-
-
-
+	"data_path": "./data.xlsx",
+	"training_portion" : 0.9,
+	"embedding_path": "./crawl-300d-2M.vec",
+	"embedding_pkl_path": "embedding.pkl",
+	"train_pkl_path": "train.pkl",
+	"val_pkl_path": "val.pkl"
 }
