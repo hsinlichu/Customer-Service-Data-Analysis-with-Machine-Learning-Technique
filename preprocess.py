@@ -13,18 +13,40 @@ from sklearn import preprocessing
 import torch
 from torch.utils.data import Dataset
 
+import time
+
 class CSDataset(Dataset):
-    def __init__(self, data, padding, padded_len=300):
+    def __init__(self, data, padding, num_classes, shuffle=False,  padded_len=80):
         self.data = data
         self.padded_len = padded_len
         self.shuffle = shuffle
         self.padding = padding
+        self.num_classes = num_classes
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, index):
         return self.data[index]
+
+    def collate_fn(self, datas):
+        batch = {}
+        batch['labels'] = torch.tensor(self._to_one_hot([r[-1] for r in datas]))
+        batch['sentences'] = torch.tensor([ self._pad_to_len(r[:-2]) for r in datas])
+        return batch
+
+    def _to_one_hot(self, y):
+        logging.info("Number of Classes: {}".format(self.num_classes))
+        matrix = torch.eye(self.num_classes)
+        ret = [matrix[r].tolist() for r in y]
+        return ret
+
+    def _pad_to_len(self,arr):
+        if len(arr) > self.padded_len:
+            arr = arr[:self.padded_len]
+        while len(arr) < self.padded_len:
+            arr.append(self.padding)
+        return arr
 
 
 class Embedding:
@@ -83,22 +105,29 @@ class Preprocessor:
         #self.logging = logging.getLogger(name=__name__)
         self.config = config
         self.le = preprocessing.LabelEncoder()
+        self.num_classes = None
         self.data = None
         self.processed = []
         self.embedding = embedding 
         self.get_dataset()
         self.split_data()
+        self.export()
 
-    def get_dataset(self, n_workers=4):
+    def get_dataset(self, n_workers=10):
         logging.info('Getting Dataset...')
         self.read_data()
+        cnt = 0
+        total = 0
 
-        for x,y in tqdm(self.data):
+        for x,y in tqdm(self.data, total=len(self.data), desc="Processing", ascii=True): 
             x = re.sub('<[^<]*?/?>', ' ', x)        # remove all html tag
             x = re.sub('https?:\/\/[^ ]*', ' ', x)  # remove all url
             x = re.sub('\S*@\S*\s?', ' ', x)        # remove all email address
             x = re.sub('[^a-z A-Z]', ' ', x)        # remove all non-english alphabat
             self.processed.append(self.sentence_to_indices(x) + [y])
+            cnt += 1 
+            total += len(self.processed[-1]) - 1
+        logging.info("Average Sentence length: {}".format(total / cnt))
             
             
     def read_data(self):
@@ -111,7 +140,8 @@ class Preprocessor:
         self.le.fit(df['catName'].unique())
         #print(self.le.transform(df.loc[:,'catName']))
         df.loc[:,'catName'] = self.le.transform(df.loc[:,'catName'])
-        logging.info("Number of classes: {}".format(len(self.le.classes_)))
+        self.num_classes = len(self.le.classes_)
+        logging.info("Number of classes: {}".format(self.num_classes))
         self.data = df[['question','catName']].to_numpy() # convert to numpy array
         logging.info("Dataset shape {}".format(self.data.shape))
 
@@ -120,19 +150,25 @@ class Preprocessor:
         logging.info("Spliting Dataset with portion: {}".format(portion))
         np.random.shuffle(self.processed)
         cut = math.ceil(len(self.data) * portion)
-        train = self.processed[:cut]
-        val = self.processed[cut:]
-        logging.info("Training set shape: {} | Validation set shape: {}".format(len(train), len(val)))
+        self.train = self.processed[:cut]
+        self.val = self.processed[cut:]
+        logging.info("Training set shape: {} | Validation set shape: {}".format(len(self.train), len(self.val)))
 
-        # TODO
-        # save training and valid data.pkl
+    def export(self):
+        padding = self.embedding.to_index('<pad>')
+        train = CSDataset(self.train, padding, self.num_classes)
+        val = CSDataset(self.val, padding, self.num_classes)
 
+        with open(self.config["labelEncoder_path"], "wb") as f:
+            pickle.dump(self.le,f)
+            logging.info( "Save labelEncoder to {}".format(self.config["labelEncoder_path"]))
         with open(self.config["train_pkl_path"], "wb") as f:
             pickle.dump(train,f)
             logging.info( "Save train to {}".format(self.config["train_pkl_path"]))
         with open(self.config["val_pkl_path"], "wb") as f:
             pickle.dump(val,f)
             logging.info( "Save val to {}".format(self.config["val_pkl_path"]))
+
 
 
     def tokenize(self, sentence):
@@ -163,6 +199,6 @@ if __name__ == "__main__":
 
     embedding = Embedding(config["embedding_path"])
     with open(config["embedding_pkl_path"], "wb") as f:
-        pickle.dump( embedding, f)
+        pickle.dump(embedding, f)
     logging.info( "Save embedding to {}".format(config["embedding_pkl_path"]))
     preprocessor = Preprocessor(config, embedding)

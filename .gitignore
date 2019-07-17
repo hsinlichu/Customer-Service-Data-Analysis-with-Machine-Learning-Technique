@@ -1,3 +1,5 @@
 *~
 *.pkl
 *.vec
+*.swp
+*.py[cod]
