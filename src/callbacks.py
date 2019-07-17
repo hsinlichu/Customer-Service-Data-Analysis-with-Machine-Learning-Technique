@@ -1,4 +1,5 @@
 import json
+import math
 
 class Callback:
     def __init__():
@@ -21,3 +22,27 @@ class MetricsLogger(Callback):
         self.history['valid'].append(log_valid)
         with open(self.log_dest, "w") as f:
             json.dump(self.history, f, indent='    ')
+
+class ModelCheckpoint(Callback):
+    def __init__(self, filepath, monitor='loss', verbose=0, mode='min'):
+        self._filepath = filepath
+        self._monitor = monitor
+        self._best = math.inf if mode == 'min' else -math.inf
+        self._mode = mode
+
+    def on_epoch_end(self, log_train, log_valid, model):
+        score = log_valid[self._monitor]
+        if self._mode == 'min':
+            if score < self._best:
+                self._best = score
+                model.save(self._filepath)
+                if self._verbose > 0:
+                    logging.info("Best model saved {}".format(score))
+        elif self._mode == 'max':
+            if score > self._best:
+                self._best = score
+                model.save(self._filepath)
+                if self._verbose > 0:
+                    logging.info("Best model saved {}".format(score))
+        elif self._mode == 'all':
+            model.save("{}.{}".format(self._filepath, model.epoch))

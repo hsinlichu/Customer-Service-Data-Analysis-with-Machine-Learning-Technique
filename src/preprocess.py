@@ -8,12 +8,26 @@ from tqdm import tqdm
 import nltk
 import re
 import pickle
+import os
 
 from sklearn import preprocessing
 import torch
 from torch.utils.data import Dataset
 
-import time
+
+def main(args, config_path):
+    logging.info('Loading congiguration file from {}'.format(config_path))
+    with open(config_path) as f:
+        config = json.load(f)
+
+    embedding = Embedding(config["embedding_path"])
+    embedding_path = os.path.join(model_dir, self.config["embedding_pkl_path"])
+    with open(embedding_path, "wb") as f:
+        pickle.dump(embedding, f)
+    logging.info( "Save embedding to {}".format(embedding_path))
+    preprocessor = Preprocessor(config, embedding, args.model_dir)
+
+
 
 class CSDataset(Dataset):
     def __init__(self, data, padding, num_classes, shuffle=False,  padded_len=80):
@@ -100,7 +114,7 @@ class Embedding:
             return self.word_dict['<unk>']
 
 class Preprocessor:
-    def __init__(self, config, embedding):
+    def __init__(self, config, embedding, model_dir):
         nltk.download('punkt')
         #self.logging = logging.getLogger(name=__name__)
         self.config = config
@@ -111,7 +125,7 @@ class Preprocessor:
         self.embedding = embedding 
         self.get_dataset()
         self.split_data()
-        self.export()
+        self.export(model_dir)
 
     def get_dataset(self, n_workers=10):
         logging.info('Getting Dataset...')
@@ -154,20 +168,24 @@ class Preprocessor:
         self.val = self.processed[cut:]
         logging.info("Training set shape: {} | Validation set shape: {}".format(len(self.train), len(self.val)))
 
-    def export(self):
+    def export(self, model_dir):
         padding = self.embedding.to_index('<pad>')
         train = CSDataset(self.train, padding, self.num_classes)
         val = CSDataset(self.val, padding, self.num_classes)
 
-        with open(self.config["labelEncoder_path"], "wb") as f:
+        le_path = os.path.join(model_dir, self.config["labelEncoder_path"])
+        train_path = os.path.join(model_dir, self.config["train_pkl_path"])
+        val_path = os.path.join(model_dir, self.config["val_pkl_path"])
+
+        with open(le_path, "wb") as f:
             pickle.dump(self.le,f)
-            logging.info( "Save labelEncoder to {}".format(self.config["labelEncoder_path"]))
-        with open(self.config["train_pkl_path"], "wb") as f:
+            logging.info( "Save labelEncoder to {}".format(le_path))
+        with open(train_path, "wb") as f:
             pickle.dump(train,f)
-            logging.info( "Save train to {}".format(self.config["train_pkl_path"]))
-        with open(self.config["val_pkl_path"], "wb") as f:
+            logging.info( "Save train to {}".format(train_path))
+        with open(val_path, "wb") as f:
             pickle.dump(val,f)
-            logging.info( "Save val to {}".format(self.config["val_pkl_path"]))
+            logging.info( "Save val to {}".format(val_path))
 
 
 
@@ -185,20 +203,18 @@ class Preprocessor:
 
 def _parse_args():
     parser = argparse.ArgumentParser(description="Preprocessing and training.")
-    parser.add_argument('config_path', type=str, default="./config.json", help="[input] Path to the config file.") 
+    parser.add_argument('model_dir', type=str, help="[input] Path to the model directory.") 
     args = parser.parse_args()
     return args
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG,format='%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s')
     args = _parse_args()
-    logging.info('Loading congiguration file from {}'.format(args.config_path))
-    with open(args.config_path) as f:
-        config = json.load(f)
+    config_path = os.path.join(args.model_dir, "config.json")
 
-
-    embedding = Embedding(config["embedding_path"])
-    with open(config["embedding_pkl_path"], "wb") as f:
-        pickle.dump(embedding, f)
-    logging.info( "Save embedding to {}".format(config["embedding_pkl_path"]))
-    preprocessor = Preprocessor(config, embedding)
+    if os.path.isfile(config_path):
+        main(args, config_path)
+    else:
+        logging.error("config.json NOT exist in {}.".format(config_path))
+        exit(1)
+    

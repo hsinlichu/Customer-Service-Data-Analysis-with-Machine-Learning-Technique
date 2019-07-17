@@ -13,7 +13,6 @@ class rnn_net(nn.Module):
         self.num_classes = num_classes
         self.bidirectional = bidirectional
         self.clf_dropout = clf_dropout
-        logging.debug("Number of layer: {}".format(self.num_layers))
 
         self.rnn = nn.GRU(input_size=dim_embeddings, hidden_size=hidden_size, num_layers=num_layers, bidirectional=bidirectional, batch_first=True) # , dropout=rnn_dropout
         self.clf = nn.Sequential(

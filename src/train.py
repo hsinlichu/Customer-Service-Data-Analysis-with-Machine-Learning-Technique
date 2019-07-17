@@ -8,25 +8,31 @@ from preprocess import Embedding, CSDataset
 from torch.utils.data.dataloader import default_collate
 from tqdm import tqdm
 import pdb
+import os
 
 import torch
+from callbacks import ModelCheckpoint, MetricsLogger
 
-def main(args):
-    with open(args.config_path) as f:
+def main(args, config_path):
+    with open(config_path) as f:
         config = json.load(f)
 
-    with open(config["embedding_pkl_path"], "rb") as f:
+    embedding_pkl_path = os.path.join(args.model_dir, config["embedding_pkl_path"])
+    train_pkl_path = os.path.join(args.model_dir, config["train_pkl_path"])
+    val_pkl_path = os.path.join(args.model_dir, config["val_pkl_path"])
+    labelEncoder_path = os.path.join(args.model_dir, config["labelEncoder_path"])
+    with open(embedding_pkl_path, "rb") as f:
         config["model_parameters"]["embedding"] = pickle.load(f).vectors
-        logging.info( "Load embedding from {}".format(config["embedding_pkl_path"]))
-    with open(config["train_pkl_path"], "rb") as f:
+        logging.info( "Load embedding from {}".format(embedding_pkl_path))
+    with open(train_pkl_path, "rb") as f:
         train = pickle.load(f)
-        logging.info( "Load train from {}".format(config["train_pkl_path"]))
-    with open(config["val_pkl_path"], "rb") as f:
+        logging.info( "Load train from {}".format(train_pkl_path))
+    with open(val_pkl_path, "rb") as f:
         config["model_parameters"]["valid"] = pickle.load(f)
-        logging.info( "Load val from {}".format(config["val_pkl_path"]))
-    with open(config["labelEncoder_path"], "rb") as f:
+        logging.info( "Load val from {}".format(val_pkl_path))
+    with open(labelEncoder_path, "rb") as f:
         config["model_parameters"]["labelEncoder"] = pickle.load(f)
-        logging.info( "Load labelEncoder from {}".format(config["labelEncoder_path"]))
+        logging.info( "Load labelEncoder from {}".format(labelEncoder_path))
 
 
     predictor = Predictor(metric=Metric(), **config["model_parameters"])
@@ -34,12 +40,13 @@ def main(args):
     if args.load is not None:
         predictor.load(args.load)
 
-    model_checkpoint = ModelCheckpoint()
+    model_checkpoint = ModelCheckpoint(
+            os.path.join(args.model_dir, 'model.pkl'),
+            'loss', 1, 'all')
+    metrics_logger = MetricsLogger(
+            os.path.join(args.model_dir, 'log.json'))
 
-
-
-    predictor.fit_dataset(train,train.collate_fn)
-
+    predictor.fit_dataset(train, train.collate_fn, [model_checkpoint, metrics_logger])
 
 
 class Metric():
@@ -68,7 +75,6 @@ class Predictor():
     def __init__(self, batch_size=64, max_epochs=100, valid=None, labelEncoder=None, device=None, metric=None,
             learning_rate=1e-3, max_iters_in_epoch=1e20, grad_accumulate_steps=1,
             embedding=None, loss="BCELoss", arch="rnn_net", **kwargs):
-        print(kwargs)
         self.batch_size = batch_size
         self.max_epochs = max_epochs
         self.valid = valid
@@ -113,6 +119,11 @@ class Predictor():
                 dataloader = torch.utils.data.DataLoader(self.valid, batch_size=self.batch_size, shuffle=False,
                         num_workers=10, collate_fn=collate_fn)
                 log_valid = self._run_epoch(dataloader, False)
+            else:
+                log_valid = None
+
+            for callback in callbacks:
+                callback.on_epoch_end(log_train, log_valid, self)
 
             self.epoch += 1
 
@@ -149,8 +160,14 @@ class Predictor():
             self.metric.update(output, batch['labels'])
             trange.set_postfix(loss=loss / (i + 1), **{"Accuracy": self.metric.get_score()})
         loss /= iter_in_epoch
-        print("loss={}\n".format(loss))
-        return 
+        score = self.metric.get_score()
+
+        epoch_log = {}
+        epoch_log['loss'] = float(loss)
+        epoch_log["Accuracy"] = score
+        print("loss={}".format(loss))
+        print("Accuracy={}".format(score))
+        return epoch_log
 
     
     def _run_iter(self, batch, training):
@@ -205,13 +222,18 @@ class Predictor():
 
 def _parse_args():
     parser = argparse.ArgumentParser(description="Training model.")
-    parser.add_argument('config_path', type=str, default="./config.json", help="[input] Path to the config file.") 
+    parser.add_argument('model_dir', type=str, help="[input] Path to the model directory.") 
+    parser.add_argument('--load', default=None, type=str)
     args = parser.parse_args()
     return args
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG,format='%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s')
     args = _parse_args()
-    logging.info('Loading congiguration file from {}'.format(args.config_path))
-    main(args)
-    
+    config_path = os.path.join(args.model_dir, "config.json")
+
+    if os.path.isfile(config_path):
+        main(args, config_path)
+    else:
+        logging.error("config.json NOT exist in {}.".format(config_path))
+        exit(1)
