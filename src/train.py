@@ -30,6 +30,14 @@ def main(args):
 
 
     predictor = Predictor(metric=Metric(), **config["model_parameters"])
+
+    if args.load is not None:
+        predictor.load(args.load)
+
+    model_checkpoint = ModelCheckpoint()
+
+
+
     predictor.fit_dataset(train,train.collate_fn)
 
 
@@ -59,8 +67,8 @@ class Metric():
 class Predictor():
     def __init__(self, batch_size=64, max_epochs=100, valid=None, labelEncoder=None, device=None, metric=None,
             learning_rate=1e-3, max_iters_in_epoch=1e20, grad_accumulate_steps=1,
-            embedding=None, loss="BCELoss",
-            arch="rnn_net", **kwargs):
+            embedding=None, loss="BCELoss", arch="rnn_net", **kwargs):
+        print(kwargs)
         self.batch_size = batch_size
         self.max_epochs = max_epochs
         self.valid = valid
@@ -78,7 +86,7 @@ class Predictor():
 
         self.epoch = 0
 
-        self.model = getattr(model_arch,arch)(embedding.size(1), self.num_classes)
+        self.model = getattr(model_arch,arch)(embedding.size(1), self.num_classes, **kwargs)
         print(self.model)
         logging.info("Embedding size: ({},{})".format(embedding.size(0),embedding.size(1)))
         self.embedding = nn.Embedding(embedding.size(0),embedding.size(1))
