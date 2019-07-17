@@ -1,5 +1,6 @@
 *~
-*.pkl
+*.pkl*
 *.vec
 *.swp
 *.py[cod]
+*.ipynb
