@@ -6,7 +6,7 @@
 	"labelEncoder_path": "labelEncoder.pkl",
 	"train_pkl_path": "train.pkl",
 	"val_pkl_path": "val.pkl",
-	"padded_len": 80,
+	"padded_len": 100,
 	"model_parameters": {
 		"arch": "rnn_net",
 		"embedding": "",
