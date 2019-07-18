@@ -16,12 +16,12 @@ from torch.utils.data import Dataset
 
 
 def main(args, config_path):
-    logging.info('Loading congiguration file from {}'.format(config_path))
+    logging.info('Loading configuration file from {}'.format(config_path))
     with open(config_path) as f:
         config = json.load(f)
 
     embedding = Embedding(config["embedding_path"])
-    embedding_path = os.path.join(model_dir, self.config["embedding_pkl_path"])
+    embedding_path = os.path.join(args.model_dir, config["embedding_pkl_path"])
     with open(embedding_path, "wb") as f:
         pickle.dump(embedding, f)
     logging.info( "Save embedding to {}".format(embedding_path))
@@ -170,8 +170,8 @@ class Preprocessor:
 
     def export(self, model_dir):
         padding = self.embedding.to_index('<pad>')
-        train = CSDataset(self.train, padding, self.num_classes)
-        val = CSDataset(self.val, padding, self.num_classes)
+        train = CSDataset(self.train, padding, self.num_classes, padded_len=self.config["padded_len"])
+        val = CSDataset(self.val, padding, self.num_classes, padded_len=self.config["padded_len"])
 
         le_path = os.path.join(model_dir, self.config["labelEncoder_path"])
         train_path = os.path.join(model_dir, self.config["train_pkl_path"])

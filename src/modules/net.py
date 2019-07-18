@@ -11,10 +11,11 @@ class rnn_net(nn.Module):
         self.dim_embeddings = dim_embeddings
         self.num_layers = num_layers
         self.num_classes = num_classes
-        self.bidirectional = bidirectional
+        self.bidirectional = bool(bidirectional)
         self.clf_dropout = clf_dropout
+        self.flag = 0
 
-        self.rnn = nn.GRU(input_size=dim_embeddings, hidden_size=hidden_size, num_layers=num_layers, bidirectional=bidirectional, batch_first=True) # , dropout=rnn_dropout
+        self.rnn = nn.GRU(input_size=self.dim_embeddings, hidden_size=self.hidden_size, num_layers=self.num_layers, bidirectional=self.bidirectional, batch_first=True) # , dropout=rnn_dropout
         self.clf = nn.Sequential(
                 nn.Linear(hidden_size, hidden_size // 2),
                 nn.BatchNorm1d(hidden_size // 2),
@@ -26,7 +27,9 @@ class rnn_net(nn.Module):
     def forward(self, sentence):
         # sentence: torch.Size([64, 80, 300])
         sentence_out, hidden = self.rnn(sentence)
-        #print(sentence_out.size(),hidden.size())
+        if not self.flag:
+            print(sentence_out.size(),hidden.size()) # torch.Size([32, 80, 128]) torch.Size([1, 32, 128])
+            self.flag = 1
         #pdb.set_trace() # breakpoint
         tmp = sentence_out[:,-1,:]
 
