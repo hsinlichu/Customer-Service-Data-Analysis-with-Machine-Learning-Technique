@@ -1,11 +1,32 @@
 import json
 import math
+from tensorboardX import SummaryWriter
+import os
+
+
 
 class Callback:
     def __init__():
         pass
     def on_epoch_end(log_train, log_valid, model):
         pass
+
+class Tensorboard(Callback):
+    def __init__(self, comment):
+        dir_name = "tensorboard"
+        if not os.path.isdir(dir_name):
+            os.mkdir(dir_name)
+        path = os.path.join(dir_name, comment)
+        #self.writer = SummaryWriter(path)
+        self.writer = SummaryWriter(path)
+
+    def on_epoch_end(self, log_train, log_valid, model):
+        self.writer.add_scalar("Train_Accuracy",log_train["Accuracy"], model.epoch)
+        self.writer.add_scalar("Train_Loss",log_train["loss"], model.epoch)
+        self.writer.add_scalar("Valid_Accuracy",log_valid["Accuracy"], model.epoch)
+        self.writer.add_scalar("Valid_Loss",log_valid["loss"], model.epoch)
+
+
 
 class MetricsLogger(Callback):
     def __init__(self, log_dest):

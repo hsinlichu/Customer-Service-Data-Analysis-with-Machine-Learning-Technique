@@ -7,7 +7,7 @@
 	"train_pkl_path": "train.pkl",
 	"val_pkl_path": "val.pkl",
 	"padded_len": 100,
-	"tensorboard": "pad100",
+	"tensorboard": "lemmatization",
 	"model_parameters": {
 		"arch": "rnn_net",
 		"embedding": "",

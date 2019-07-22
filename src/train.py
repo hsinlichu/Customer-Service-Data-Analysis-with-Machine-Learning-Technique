@@ -9,7 +9,7 @@ import os
 
 import torch
 from mypredictor import Predictor
-from callbacks import ModelCheckpoint, MetricsLogger
+from callbacks import ModelCheckpoint, MetricsLogger, Tensorboard
 from metric import Metric
 
 def main(args, config_path):
@@ -46,7 +46,10 @@ def main(args, config_path):
     metrics_logger = MetricsLogger(
             os.path.join(args.model_dir, 'log.json'))
 
-    predictor.fit_dataset(train, train.collate_fn, [model_checkpoint, metrics_logger])
+    tensorboard = Tensorboard(config["tensorboard"])
+
+    logging.info("start training!")
+    predictor.fit_dataset(train, train.collate_fn, [model_checkpoint, metrics_logger, tensorboard])
 
 
 

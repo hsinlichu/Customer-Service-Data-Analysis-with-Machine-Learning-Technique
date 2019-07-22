@@ -14,13 +14,28 @@ from sklearn import preprocessing
 import torch
 from torch.utils.data import Dataset
 
+# Spell Correction
+from autocorrect import spell
+
+#lemmatization
+from nltk import word_tokenize, pos_tag
+from nltk.corpus import wordnet
+from nltk.stem import WordNetLemmatizer
+
 
 def main(args, config_path):
     logging.info('Loading configuration file from {}'.format(config_path))
     with open(config_path) as f:
         config = json.load(f)
 
-    embedding = Embedding(config["embedding_path"])
+    print(args.embedding)
+    if args.embedding != None:
+        with open(args.embedding, "rb") as f:
+            embedding = pickle.load(f)
+            logging.info( "Load embedding from {}".format(args.embedding))
+    else: 
+        embedding = Embedding(config["embedding_path"])
+        
     embedding_path = os.path.join(args.model_dir, config["embedding_pkl_path"])
     with open(embedding_path, "wb") as f:
         pickle.dump(embedding, f)
@@ -50,7 +65,7 @@ class CSDataset(Dataset):
         return batch
 
     def _to_one_hot(self, y):
-        logging.info("Number of Classes: {}".format(self.num_classes))
+        #logging.info("Number of Classes: {}".format(self.num_classes))
         matrix = torch.eye(self.num_classes)
         ret = [matrix[r].tolist() for r in y]
         return ret
@@ -116,6 +131,8 @@ class Embedding:
 class Preprocessor:
     def __init__(self, config, embedding, model_dir):
         nltk.download('punkt')
+        nltk.download('averaged_perceptron_tagger')
+        self.wnl = WordNetLemmatizer()
         #self.logging = logging.getLogger(name=__name__)
         self.config = config
         self.le = preprocessing.LabelEncoder()
@@ -134,14 +151,12 @@ class Preprocessor:
         total = 0
 
         for x,y in tqdm(self.data, total=len(self.data), desc="Processing", ascii=True): 
-            x = re.sub('<[^<]*?/?>', ' ', x)        # remove all html tag
-            x = re.sub('https?:\/\/[^ ]*', ' ', x)  # remove all url
-            x = re.sub('\S*@\S*\s?', ' ', x)        # remove all email address
-            x = re.sub('[^a-z A-Z]', ' ', x)        # remove all non-english alphabat
+            x = self._filter(x.lower()) 
             self.processed.append(self.sentence_to_indices(x) + [y])
             cnt += 1 
             total += len(self.processed[-1]) - 1
         logging.info("Average Sentence length: {}".format(total / cnt))
+
             
             
     def read_data(self):
@@ -189,8 +204,59 @@ class Preprocessor:
 
 
 
+
+
+    def _filter(self, ori_x):
+        x = re.sub('<[^<]*?/?>', ' ', ori_x)        # remove all html tag
+        x = re.sub('https?:\/\/[^ ]*', ' ', x)  # remove all url
+        x = re.sub('\S*@\S*\s?', ' ', x)        # remove all email address
+        x = re.sub('\S*\.\S*\s?', ' ', x, flags=re.IGNORECASE)        # remove all filename
+        x = re.sub('[^a-z A-Z]', ' ', x)        # remove all non-english alphabat
+        return x
+
+
+    def _correct_word(self, text1):
+        pattern = re.compile(r"(.)\1{2,}")
+        text2 = pattern.sub(r"\1\1", text1) # reduce lengthening
+        if text1 != text2:
+            print(text1, text2)
+        text3 = spell(text2).lower() # spell correction
+        if text2 != text3:
+            print(text2, text3)
+        return text3
+
+
+    def _get_wordnet_pos(self,tag):
+        if tag.startswith('J'):
+            return wordnet.ADJ
+        elif tag.startswith('V'):
+            return wordnet.VERB
+        elif tag.startswith('N'):
+            return wordnet.NOUN
+        elif tag.startswith('R'):
+            return wordnet.ADV
+        else:
+            return None
+
+
+    def _lemmatization(self, tokens):
+        tagged_sent = pos_tag(tokens)   
+        ret = []
+        for tag in tagged_sent:
+            wordnet_pos = self._get_wordnet_pos(tag[1]) or wordnet.NOUN
+            ret.append(self.wnl.lemmatize(tag[0], pos=wordnet_pos))
+        return ret
+
+
+
+
     def tokenize(self, sentence):
         tokens = nltk.word_tokenize(sentence)
+        tokens = [self._correct_word(word) for word in tokens] # spell correction
+        print(tokens)
+        tokens = self._lemmatization(tokens) # lemmatization
+        print(tokens)
+
         return tokens
 
     def sentence_to_indices(self, sentence):
@@ -204,6 +270,7 @@ class Preprocessor:
 def _parse_args():
     parser = argparse.ArgumentParser(description="Preprocessing and training.")
     parser.add_argument('model_dir', type=str, help="[input] Path to the model directory.") 
+    parser.add_argument('-e', dest="embedding", default=None, type=str, help="[input] Path to the embedding.") 
     args = parser.parse_args()
     return args
 

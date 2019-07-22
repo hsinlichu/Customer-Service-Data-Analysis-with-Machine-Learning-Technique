@@ -67,6 +67,9 @@ class Predictor():
 
         loss = 0
 
+        self.metric.reset()
+
+
         if training:
             iter_in_epoch = min(len(dataloader), self.max_iters_in_epoch)
             description = "training"
@@ -115,7 +118,7 @@ class Predictor():
         loss = self.loss(logits, y.float().to(self.device))
         return logits, loss
 
-    def _predict_batch(self, x, training):
+    def _predict_batch(self, x):
         sentence = self.embedding(x.to(self.device))
         logits = self.model.forward(sentence.to(self.device))
         return logits
@@ -131,13 +134,18 @@ class Predictor():
                 num_workers=10, collate_fn=collate_fn)
 
         ans = []
+        solutions = []
         with torch.no_grad():
             trange = tqdm(enumerate(dataloader), total=len(dataloader), desc="predicting", ncols=70)
-            for batch in trange:
-                batch_y = predict_fn(batch)
+            for i, batch in trange:
+                x = batch["sentences"]
+                solution = batch["labels"]
+                batch_y = predict_fn(x) #batch
+                solutions.append(solution)
                 ans.append(batch_y)
         ans = torch.cat(ans, 0)
-        return ans
+        solutions = torch.cat(solutions, 0)
+        return ans, solutions
     
     def save(self, path):
             torch.save({
