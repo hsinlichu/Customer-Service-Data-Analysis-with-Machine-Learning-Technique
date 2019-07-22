@@ -22,6 +22,9 @@ from nltk import word_tokenize, pos_tag
 from nltk.corpus import wordnet
 from nltk.stem import WordNetLemmatizer
 
+# stopwords
+from nltk.corpus import stopwords
+
 
 def main(args, config_path):
     logging.info('Loading configuration file from {}'.format(config_path))
@@ -132,6 +135,8 @@ class Preprocessor:
     def __init__(self, config, embedding, model_dir):
         nltk.download('punkt')
         nltk.download('averaged_perceptron_tagger')
+        nltk.download("stopwords")
+        self.stopwords = set(stopwords.words("english"))
         self.wnl = WordNetLemmatizer()
         #self.logging = logging.getLogger(name=__name__)
         self.config = config
@@ -248,16 +253,27 @@ class Preprocessor:
         return ret
 
 
+    def _remove_stopword(self, tokens):
+        ret = []
+        for word in tokens:
+            if word not in self.stopwords and len(word) > 1:
+                ret.append(word)
+        return ret
 
 
     def tokenize(self, sentence):
         tokens = nltk.word_tokenize(sentence)
+        print("")
+        print(tokens)
         tokens = [self._correct_word(word) for word in tokens] # spell correction
-        print(tokens)
         tokens = self._lemmatization(tokens) # lemmatization
+        tokens = self._remove_stopword(tokens) # remove stopwords
+        print("+++++++++++++++")
         print(tokens)
+        print("=======================")
 
         return tokens
+
 
     def sentence_to_indices(self, sentence):
         sentence = self.tokenize(sentence)
