@@ -6,8 +6,8 @@
 	"labelEncoder_path": "labelEncoder.pkl",
 	"train_pkl_path": "train.pkl",
 	"val_pkl_path": "val.pkl",
-	"padded_len": 100,
-	"tensorboard": "rm_stopwords",
+	"padded_len": 50,
+	"tensorboard": "rm_stopwords_pad50",
 	"model_parameters": {
 		"arch": "rnn_net",
 		"embedding": "",
@@ -15,7 +15,7 @@
 		"labelEncoder": "",
 		"learning_rate": 1e-2,
 		"batch_size": 32,
-		"max_epochs": 60,
+		"max_epochs": 30,
 		"num_layers": 1,
 		"bidirectional": 0,
 		"loss": "BCEWithLogitsLoss"
