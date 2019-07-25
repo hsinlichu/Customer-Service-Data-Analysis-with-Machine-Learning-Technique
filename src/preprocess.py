@@ -9,6 +9,7 @@ import nltk
 import re
 import pickle
 import os
+from multiprocessing import Pool
 
 from sklearn import preprocessing
 import torch
@@ -152,16 +153,36 @@ class Preprocessor:
     def get_dataset(self, n_workers=10):
         logging.info('Getting Dataset...')
         self.read_data()
-        cnt = 0
-        total = 0
 
-        for x,y in tqdm(self.data, total=len(self.data), desc="Processing", ascii=True): 
-            x = self._filter(x.lower()) 
-            self.processed.append(self.sentence_to_indices(x) + [y])
-            cnt += 1 
-            total += len(self.processed[-1]) - 1
-        logging.info("Average Sentence length: {}".format(total / cnt))
+        ret = [None] * n_workers
+        with Pool(processes=n_workers) as pool:
+            for i in range(n_workers):
+                batch_start = (len(self.data) // n_workers) * i
+                if i == n_workers - 1: # last worker
+                    batch_end = len(self.data)
+                else:
+                    batch_end = (len(self.data) // n_workers) * (i + 1)
+                batch = self.data[batch_start: batch_end]
+                ret[i] =  pool.apply_async(self.preprocess_batch, [batch])
 
+            pool.close()
+            pool.join()
+
+        total_len = 0
+        for result in ret:
+            batch, batch_len = result.get()
+            self.processed += batch
+            total_len += batch_len
+        logging.info("Average Sentence length: {}".format(total_len / len(self.data)))
+
+    def preprocess_batch(self, batch):
+        print("worker")
+        batch_len = 0
+        ret = []
+        for x,y in tqdm(batch, total=len(batch), desc="Processing", ascii=True): 
+            ret.append(self.sentence_to_indices(x) + [y])
+            batch_len += len(ret[-1]) - 1
+        return ret, batch_len
             
             
     def read_data(self):
@@ -171,9 +192,10 @@ class Preprocessor:
         df = df.dropna() # drop nan entry
         # df[pd.isnull(df).any(axis=1)]
 
-        self.le.fit(df['catName'].unique())
+        self.le.fit(df['catName'].astype(str).unique())
         #print(self.le.transform(df.loc[:,'catName']))
         df.loc[:,'catName'] = self.le.transform(df.loc[:,'catName'])
+
         self.num_classes = len(self.le.classes_)
         logging.info("Number of classes: {}".format(self.num_classes))
         self.data = df[['question','catName']].to_numpy() # convert to numpy array
@@ -223,11 +245,11 @@ class Preprocessor:
     def _correct_word(self, text1):
         pattern = re.compile(r"(.)\1{2,}")
         text2 = pattern.sub(r"\1\1", text1) # reduce lengthening
-        if text1 != text2:
-            print(text1, text2)
+        #if text1 != text2:
+        #    print(text1, text2)
         text3 = spell(text2).lower() # spell correction
-        if text2 != text3:
-            print(text2, text3)
+        #if text2 != text3:
+        #    print(text2, text3)
         return text3
 
 
@@ -262,15 +284,16 @@ class Preprocessor:
 
 
     def tokenize(self, sentence):
+        sentence = self._filter(sentence.lower()) 
         tokens = nltk.word_tokenize(sentence)
-        print("")
-        print(tokens)
+        #print("")
+        #print(tokens)
         tokens = [self._correct_word(word) for word in tokens] # spell correction
         tokens = self._lemmatization(tokens) # lemmatization
         tokens = self._remove_stopword(tokens) # remove stopwords
-        print("+++++++++++++++")
-        print(tokens)
-        print("=======================")
+        #print("+++++++++++++++")
+        #print(tokens)
+        #print("=======================")
 
         return tokens
 
