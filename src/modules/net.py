@@ -13,9 +13,9 @@ class rnn_net(nn.Module):
         self.num_classes = num_classes
         self.bidirectional = bool(bidirectional)
         self.clf_dropout = clf_dropout
-        self.flag = 0
+        self.flag = 1
 
-        self.rnn = nn.GRU(input_size=self.dim_embeddings, hidden_size=self.hidden_size, num_layers=self.num_layers, bidirectional=self.bidirectional, batch_first=True) # , dropout=rnn_dropout
+        self.rnn = nn.LSTM(input_size=self.dim_embeddings, hidden_size=self.hidden_size, num_layers=self.num_layers, bidirectional=self.bidirectional, batch_first=True) # , dropout=rnn_dropout
         self.clf = nn.Sequential(
                 nn.Linear(hidden_size, hidden_size // 2),
                 nn.BatchNorm1d(hidden_size // 2),

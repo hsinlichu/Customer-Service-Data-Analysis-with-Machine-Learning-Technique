@@ -137,6 +137,7 @@ class Preprocessor:
         nltk.download('punkt')
         nltk.download('averaged_perceptron_tagger')
         nltk.download("stopwords")
+        nltk.download("wordnet")
         self.stopwords = set(stopwords.words("english"))
         self.wnl = WordNetLemmatizer()
         #self.logging = logging.getLogger(name=__name__)
