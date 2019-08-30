@@ -30,9 +30,11 @@ This customer service data is around 0.1 million customer feedback sentence with
 I use simply GRU model to classify text sentence into their group. The input is question string sentence and the output is its class. The ground truth is user selected question type.
 
 ### How to run
-* Preprocessing: `python ./src/preprocess.py <directory/which/contain/model/config.json>`
+* Preprocessing: `python ./src/preprocess.py <directory/which/contain/model/config.json> [-e ./path/to/embedding.pkl]`
     
-    Ex: `python ./src/preprocess.py ./model/lstm_model`
+    The last argument `-e` is optional. Because processing `embedding.pkl` take long time, you can just use this argument and specify your `embedding.pkl` to save your time.  
+    
+    Ex: `python ./src/preprocess.py ./model/lstm_model -e ./model/lstm_model/embedding.pkl`
 * Training: `python ./src/train.py <directory/which/contain/model/config.json>`
 
     Ex: `python ./src/train.py ./model/lstm_model`
