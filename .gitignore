@@ -3,6 +3,5 @@
 *.vec
 *.swp
 *.py[cod]
-events.out.tfevents.*
 .ipynb_checkpoints
 *.xlsx
