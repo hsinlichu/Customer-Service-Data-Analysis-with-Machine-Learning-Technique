@@ -66,7 +66,7 @@ Note: Below graph are the clustering result using Doc2Vec sentence representatio
 ![](https://i.imgur.com/xn2t0Lq.png)
 
 ## Topic Modeling - LDA
-I also use LDA which is a generative probability model to figure out some latent topics. The result below are visualized by [pyLDAvis].(https://github.com/bmabey/pyLDAvis)
+I also use LDA which is a generative probability model to figure out some latent topics. The result below are visualized by [pyLDAvis](https://github.com/bmabey/pyLDAvis).
 ![](https://i.imgur.com/rjk7G3f.png)
 
 ## Find related question based on BERT.
