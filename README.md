@@ -1,5 +1,5 @@
 # Customer Service Data Analysis with Machine Learning Technique 
-This project was done when I interned at [Cyberlink](https://www.cyberlink.com/index_en_US.html). I was responsible for analyzing with machine learning technique. 
+This project was done when I interned at [Cyberlink](https://www.cyberlink.com/index_en_US.html). I was responsible for analyzing customer service data with machine learning technique. 
 
 During my summer intern, I do few things below:
 1. Supervised text classification
